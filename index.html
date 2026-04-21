@@ -132,7 +132,7 @@
     color: var(--fg-dim);
     margin-bottom: 14px;
   }
-  .bravo-btn-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px; }
+  .bravo-btn-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
   .bravo-btn {
     aspect-ratio: 1;
     border: 2px solid transparent;
@@ -341,7 +341,6 @@
   <h3>Modo de Edição</h3>
   <p class="hint">Escolhe uma BRAVO e depois arrasta os cantos do polígono no mapa para ajustar as fronteiras. As alterações são guardadas neste telemóvel.</p>
   <div class="bravo-btn-grid">
-    <button class="bravo-btn bravo-btn-1" data-bravo="1">1</button>
     <button class="bravo-btn bravo-btn-2" data-bravo="2">2</button>
     <button class="bravo-btn bravo-btn-3" data-bravo="3">3</button>
     <button class="bravo-btn bravo-btn-4" data-bravo="4">4</button>
@@ -359,40 +358,69 @@
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script>
 const DEFAULT_ZONES = {
-  1: { name: 'BRAVO 1', color: '#ef4444',
-    coords: [[37.0420, -8.0290],[37.0420, -8.0240],[37.0395, -8.0235],[37.0380, -8.0270],[37.0395, -8.0295]] },
+  // NOTA: Na realidade só existem 4 BRAVOS — começam no 2, não no 1.
+  // Coordenadas baseadas no mapa digitalizado oficial com fronteiras claras.
+  // Ajustar no terreno usando o botão "Editar" para precisão fina.
+
   2: { name: 'BRAVO 2', color: '#f59e0b',
-    coords: [[37.0470, -8.0220],[37.0470, -8.0150],[37.0400, -8.0140],[37.0390, -8.0220]] },
-  3: { name: 'BRAVO 3', color: '#10b981',
-    // Zona centro-sul: Hotel Dona Filipa, P6, P7, P4, buracos 13,14,15,16,17,18,
-    // ruas Pinheiros, Cerejeiras, Figueira, Laranjeira, Horta, Colina
-    // Lotes 300s-700s, incluindo toda a área em torno do Hotel Dona Filipa
+    // Zona este: lotes 700s-900s, campos de golf do lado direito,
+    // separa-se da BRAVO 3 por uma linha que vai de norte a sul pelo centro-este
     coords: [
-      [37.0445, -8.0305],  // NW - perto do P6 / entrada Av. do Mar
-      [37.0455, -8.0240],  // N - Rua da Figueira / Rua da Laranjeira
-      [37.0460, -8.0180],  // NE - zona dos lotes 800s-900s (Romanz, Achoris)
-      [37.0435, -8.0150],  // E - lotes 700s
-      [37.0400, -8.0170],  // SE - Rua da Colina / lotes 400s-500s
-      [37.0385, -8.0220],  // S - buraco 16 / lotes finais 400s-500s
-      [37.0390, -8.0270],  // SSW - buraco 17
-      [37.0410, -8.0305],  // SW - Hotel Dona Filipa / buraco 18
-      [37.0430, -8.0320]   // W - Avenida do Mar / P7
+      [37.0480, -8.0195],  // NW - transição com BRAVO 5
+      [37.0490, -8.0120],  // N - canto nordeste
+      [37.0460, -8.0080],  // NE - extremo este
+      [37.0420, -8.0080],  // E - extremo este-sul
+      [37.0390, -8.0120],  // SE - canto sul
+      [37.0385, -8.0175],  // S - fronteira sul
+      [37.0410, -8.0195],  // SW - transição para BRAVO 3
+      [37.0440, -8.0200]   // W - lado oeste da zona
     ] },
-  4: { name: 'BRAVO 4', color: '#3b82f6',
-    coords: [[37.0380, -8.0290],[37.0380, -8.0220],[37.0330, -8.0210],[37.0320, -8.0290]] },
-  5: { name: 'BRAVO 5', color: '#a855f7',
-    // Zona norte/noroeste: campos de golf superiores (3,4,6,8,10,11),
-    // restaurante Spices/Lounge Bar (ponto "5" no mapa),
-    // lotes 1000s norte, orla oeste. NÃO inclui Hotel Dona Filipa (é BRAVO 3).
+
+  3: { name: 'BRAVO 3', color: '#10b981',
+    // Zona centro-sudoeste: Hotel Dona Filipa, P6, P7, buracos 13,14,15,17,18,
+    // Rua dos Pinheiros, Rua das Cerejeiras, Rua da Figueira, Rua da Laranjeira,
+    // lotes 300s-700s. Inclui orla oeste entre restaurantes e hotel.
     coords: [
-      [37.0490, -8.0340],  // NW - canto noroeste junto à orla/praia
-      [37.0510, -8.0280],  // N - restaurante Spices / Lounge Bar
-      [37.0515, -8.0220],  // NE - campos de golf 3/4
-      [37.0490, -8.0180],  // E - desce para leste pelos buracos 6/8
-      [37.0465, -8.0195],  // SE - lotes 1000s
-      [37.0460, -8.0245],  // S - transição para BRAVO 3 (acima do hotel)
-      [37.0455, -8.0310],  // SW - orla norte da BRAVO 3
-      [37.0475, -8.0340]   // W - orla oeste a subir
+      [37.0460, -8.0310],  // NW - orla oeste norte (abaixo dos restaurantes BRAVO 5)
+      [37.0465, -8.0245],  // N - Rua da Figueira / Rua da Laranjeira
+      [37.0470, -8.0195],  // NE - fronteira com BRAVO 2
+      [37.0440, -8.0195],  // E - desce pela fronteira com BRAVO 2
+      [37.0410, -8.0195],  // SE - transição BRAVO 2/4
+      [37.0395, -8.0230],  // S - buracos 15/16 (fronteira sul)
+      [37.0395, -8.0290],  // SSW - buraco 17 / entrada do Hotel Dona Filipa
+      [37.0410, -8.0315],  // SW - Hotel Dona Filipa / P7 / buraco 18
+      [37.0435, -8.0325]   // W - Avenida do Mar
+    ] },
+
+  4: { name: 'BRAVO 4', color: '#3b82f6',
+    // Zona sul (laranja no mapa): lago grande, lotes 4000s-5000s,
+    // área mais extensa na parte baixa do resort, Parque Natural da Ria Formosa.
+    coords: [
+      [37.0395, -8.0325],  // NW - orla oeste, abaixo do Hotel Dona Filipa
+      [37.0395, -8.0230],  // N - fronteira norte com BRAVO 3
+      [37.0395, -8.0195],  // NE - junção com BRAVO 2
+      [37.0385, -8.0120],  // E - extremo este sul
+      [37.0340, -8.0100],  // SE - canto sudeste
+      [37.0290, -8.0150],  // S - extremo sul
+      [37.0280, -8.0260],  // SW - zona do lago grande
+      [37.0310, -8.0335],  // W - orla oeste sul
+      [37.0360, -8.0340]   // WNW - orla subindo
+    ] },
+
+  5: { name: 'BRAVO 5', color: '#a855f7',
+    // Zona norte (ZONE 2 no mapa): campos de golf superiores (3,4,6,8,10,11,12),
+    // restaurante Spices/Lounge Bar, lotes 1000s norte,
+    // estende-se da orla oeste até ao centro-norte do resort.
+    coords: [
+      [37.0495, -8.0345],  // NW - canto noroeste junto à praia
+      [37.0525, -8.0280],  // N - centro-norte
+      [37.0535, -8.0180],  // NE - extremo norte (zona campo golf 12)
+      [37.0505, -8.0120],  // E - lado este superior
+      [37.0480, -8.0125],  // SE - desce para leste
+      [37.0475, -8.0195],  // S - fronteira com BRAVO 2
+      [37.0465, -8.0250],  // SSW - acima do Hotel Dona Filipa
+      [37.0460, -8.0310],  // SW - orla norte
+      [37.0475, -8.0345]   // W - orla oeste subindo
     ] }
 };
 
