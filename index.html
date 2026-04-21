@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BRAVO">
+<title>BRAVO Navigator — Vale do Lobo</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --b1: #ef4444;
+    --b2: #f59e0b;
+    --b3: #10b981;
+    --b4: #3b82f6;
+    --b5: #a855f7;
+    --bg: #0a0e1a;
+    --bg-soft: #141a2b;
+    --fg: #f8fafc;
+    --fg-dim: #94a3b8;
+    --border: rgba(255,255,255,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); font-family: 'Space Grotesk', sans-serif; }
+
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+  #status {
+    padding: 14px 16px 12px;
+    background: linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 100%);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    z-index: 1000;
+    position: relative;
+  }
+  #status .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--fg-dim);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  #status .bravo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 44px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  #status .bravo .dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--fg-dim);
+    display: inline-block;
+    transition: background 0.3s;
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.08);
+  }
+  #status .sub {
+    font-size: 12px;
+    color: var(--fg-dim);
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  #map { flex: 1; background: #1a1f2e; }
+
+  #toolbar {
+    display: flex;
+    gap: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    z-index: 1000;
+  }
+  #toolbar button {
+    flex: 1;
+    padding: 14px 6px;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border);
+    color: var(--fg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  #toolbar button:last-child { border-right: none; }
+  #toolbar button:active { background: rgba(255,255,255,0.1); }
+  #toolbar button.active { background: var(--fg); color: var(--bg); }
+  #toolbar button.highlight {
+    background: #f8fafc;
+    color: #0a0e1a;
+    font-weight: 800;
+  }
+  #toolbar button.highlight:active { background: #cbd5e1; }
+
+  #edit-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 2000;
+    width: 90%;
+    max-width: 340px;
+    display: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  #edit-panel.show { display: block; }
+  #edit-panel h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin-bottom: 14px;
+  }
+  .bravo-btn-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px; }
+  .bravo-btn {
+    aspect-ratio: 1;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 20px;
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .bravo-btn:active { transform: scale(0.92); }
+  .bravo-btn.selected { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.2); }
+  .bravo-btn-1 { background: var(--b1); }
+  .bravo-btn-2 { background: var(--b2); }
+  .bravo-btn-3 { background: var(--b3); }
+  .bravo-btn-4 { background: var(--b4); }
+  .bravo-btn-5 { background: var(--b5); }
+
+  .panel-actions { display: flex; gap: 8px; }
+  .panel-actions button {
+    flex: 1;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--fg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .panel-actions button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+  .hint {
+    font-size: 12px;
+    color: var(--fg-dim);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .leaflet-container { font-family: 'Space Grotesk', sans-serif; background: #1a1f2e; }
+  .leaflet-control-attribution { background: rgba(10,14,26,0.8) !important; color: var(--fg-dim) !important; font-size: 9px !important; }
+  .leaflet-control-attribution a { color: var(--fg-dim) !important; }
+  .leaflet-control-zoom a {
+    background: var(--bg-soft) !important;
+    color: var(--fg) !important;
+    border: 1px solid var(--border) !important;
+    font-family: 'JetBrains Mono', monospace !important;
+  }
+
+  .gps-marker {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+    70% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+  }
+
+  .bravo-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 22px;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    text-align: center;
+    pointer-events: none;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  #toast {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-soft);
+    color: var(--fg);
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    border: 1px solid var(--border);
+  }
+  #toast.show { opacity: 1; }
+
+  /* Ponto 0 marker */
+  .p0-marker {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid #0a0e1a;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 0 2px rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 18px;
+    color: #0a0e1a;
+  }
+  .p0-marker span { line-height: 1; }
+
+  /* Route info bar — shown when navigating to P0 */
+  #route-info {
+    position: absolute;
+    top: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 14, 26, 0.95);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 16px;
+    z-index: 1500;
+    display: none;
+    gap: 16px;
+    align-items: center;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  #route-info.show { display: flex; }
+  #route-info .route-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  #route-info .route-col .k {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--fg-dim);
+    text-transform: uppercase;
+  }
+  #route-info .route-col .v {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--fg);
+  }
+  #route-info .divider { width: 1px; height: 28px; background: var(--border); }
+  #route-info button {
+    background: #f8fafc;
+    color: #0a0e1a;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  #route-info .close-btn {
+    background: transparent;
+    color: var(--fg-dim);
+    font-size: 18px;
+    padding: 4px 8px;
+    margin-left: -6px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="status">
+    <div class="label">Localização Atual</div>
+    <div class="bravo">
+      <span class="dot" id="dot"></span>
+      <span id="zone-text">A aguardar GPS…</span>
+    </div>
+    <div class="sub" id="coords">—</div>
+  </div>
+  <div id="map"></div>
+  <div id="toolbar">
+    <button id="btn-p0" class="highlight">→ P0</button>
+    <button id="btn-center">GPS</button>
+    <button id="btn-edit">Editar</button>
+    <button id="btn-menu">•••</button>
+  </div>
+</div>
+
+<div id="route-info">
+  <button class="close-btn" id="route-close">×</button>
+  <div class="route-col">
+    <span class="k">Distância</span>
+    <span class="v route-dist">—</span>
+  </div>
+  <div class="divider"></div>
+  <div class="route-col">
+    <span class="k">Direção</span>
+    <span class="v route-dir">—</span>
+  </div>
+  <button id="route-gmaps">Google Maps</button>
+</div>
+
+<div id="edit-panel">
+  <h3>Modo de Edição</h3>
+  <p class="hint">Escolhe uma BRAVO e depois arrasta os cantos do polígono no mapa para ajustar as fronteiras. As alterações são guardadas neste telemóvel.</p>
+  <div class="bravo-btn-grid">
+    <button class="bravo-btn bravo-btn-1" data-bravo="1">1</button>
+    <button class="bravo-btn bravo-btn-2" data-bravo="2">2</button>
+    <button class="bravo-btn bravo-btn-3" data-bravo="3">3</button>
+    <button class="bravo-btn bravo-btn-4" data-bravo="4">4</button>
+    <button class="bravo-btn bravo-btn-5" data-bravo="5">5</button>
+  </div>
+  <div class="panel-actions">
+    <button id="edit-cancel">Fechar</button>
+    <button id="edit-save" class="primary">Guardar</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+const DEFAULT_ZONES = {
+  1: { name: 'BRAVO 1', color: '#ef4444',
+    coords: [[37.0420, -8.0290],[37.0420, -8.0240],[37.0395, -8.0235],[37.0380, -8.0270],[37.0395, -8.0295]] },
+  2: { name: 'BRAVO 2', color: '#f59e0b',
+    coords: [[37.0470, -8.0220],[37.0470, -8.0150],[37.0400, -8.0140],[37.0390, -8.0220]] },
+  3: { name: 'BRAVO 3', color: '#10b981',
+    // Zona centro-sul: Hotel Dona Filipa, P6, P7, P4, buracos 13,14,15,16,17,18,
+    // ruas Pinheiros, Cerejeiras, Figueira, Laranjeira, Horta, Colina
+    // Lotes 300s-700s, incluindo toda a área em torno do Hotel Dona Filipa
+    coords: [
+      [37.0445, -8.0305],  // NW - perto do P6 / entrada Av. do Mar
+      [37.0455, -8.0240],  // N - Rua da Figueira / Rua da Laranjeira
+      [37.0460, -8.0180],  // NE - zona dos lotes 800s-900s (Romanz, Achoris)
+      [37.0435, -8.0150],  // E - lotes 700s
+      [37.0400, -8.0170],  // SE - Rua da Colina / lotes 400s-500s
+      [37.0385, -8.0220],  // S - buraco 16 / lotes finais 400s-500s
+      [37.0390, -8.0270],  // SSW - buraco 17
+      [37.0410, -8.0305],  // SW - Hotel Dona Filipa / buraco 18
+      [37.0430, -8.0320]   // W - Avenida do Mar / P7
+    ] },
+  4: { name: 'BRAVO 4', color: '#3b82f6',
+    coords: [[37.0380, -8.0290],[37.0380, -8.0220],[37.0330, -8.0210],[37.0320, -8.0290]] },
+  5: { name: 'BRAVO 5', color: '#a855f7',
+    // Zona norte/noroeste: campos de golf superiores (3,4,6,8,10,11),
+    // restaurante Spices/Lounge Bar (ponto "5" no mapa),
+    // lotes 1000s norte, orla oeste. NÃO inclui Hotel Dona Filipa (é BRAVO 3).
+    coords: [
+      [37.0490, -8.0340],  // NW - canto noroeste junto à orla/praia
+      [37.0510, -8.0280],  // N - restaurante Spices / Lounge Bar
+      [37.0515, -8.0220],  // NE - campos de golf 3/4
+      [37.0490, -8.0180],  // E - desce para leste pelos buracos 6/8
+      [37.0465, -8.0195],  // SE - lotes 1000s
+      [37.0460, -8.0245],  // S - transição para BRAVO 3 (acima do hotel)
+      [37.0455, -8.0310],  // SW - orla norte da BRAVO 3
+      [37.0475, -8.0340]   // W - orla oeste a subir
+    ] }
+};
+
+// Ponto 0 — Local de encontro de toda a equipa (perto do P6)
+// Coordenadas aproximadas: zona da entrada principal do resort na Av. do Mar
+const DEFAULT_POINT_ZERO = { lat: 37.0432, lng: -8.0295 };
+const POINT_ZERO_KEY = 'bravo_point_zero_v1';
+function loadPointZero() {
+  const saved = localStorage.getItem(POINT_ZERO_KEY);
+  if (saved) { try { return JSON.parse(saved); } catch (e) { return {...DEFAULT_POINT_ZERO}; } }
+  return {...DEFAULT_POINT_ZERO};
+}
+function savePointZero(p) { localStorage.setItem(POINT_ZERO_KEY, JSON.stringify(p)); }
+
+const STORAGE_KEY = 'bravo_zones_v1';
+function loadZones() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) { try { return JSON.parse(saved); } catch (e) { return structuredClone(DEFAULT_ZONES); } }
+  return structuredClone(DEFAULT_ZONES);
+}
+function saveZones(z) { localStorage.setItem(STORAGE_KEY, JSON.stringify(z)); }
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+let zones = loadZones();
+const map = L.map('map', { zoomControl: true, attributionControl: true })
+  .setView([37.0443, -8.0259], 15);
+
+const satellite = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Esri World Imagery', maxZoom: 19 }
+);
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap', maxZoom: 19
+});
+satellite.addTo(map);
+L.control.layers({ 'Satélite': satellite, 'Mapa': osm }, null, { position: 'topright' }).addTo(map);
+
+let zoneLayers = {};
+function renderZones() {
+  Object.values(zoneLayers).forEach(l => map.removeLayer(l));
+  zoneLayers = {};
+  for (const [id, z] of Object.entries(zones)) {
+    const poly = L.polygon(z.coords, {
+      color: z.color, fillColor: z.color, fillOpacity: 0.25, weight: 3, opacity: 0.9
+    }).bindTooltip(z.name, { permanent: true, direction: 'center', className: 'bravo-label' });
+    poly._bravoId = id;
+    poly.addTo(map);
+    zoneLayers[id] = poly;
+  }
+}
+
+// ---------- Ponto 0 ----------
+let pointZero = loadPointZero();
+let p0Marker = null;
+let p0RouteLine = null;
+let p0Dragging = false;
+
+function renderPointZero() {
+  if (p0Marker) { map.removeLayer(p0Marker); p0Marker = null; }
+  const icon = L.divIcon({
+    className: '',
+    html: '<div class="p0-marker"><span>0</span></div>',
+    iconSize: [36, 36],
+    iconAnchor: [18, 18]
+  });
+  p0Marker = L.marker([pointZero.lat, pointZero.lng], {
+    icon, zIndexOffset: 900, draggable: p0Dragging
+  }).addTo(map);
+  p0Marker.bindTooltip('PONTO 0', { permanent: false, direction: 'top', offset: [0, -18] });
+  if (p0Dragging) {
+    p0Marker.on('dragend', () => {
+      const ll = p0Marker.getLatLng();
+      pointZero = { lat: ll.lat, lng: ll.lng };
+      savePointZero(pointZero);
+      toast('Ponto 0 movido ✓');
+    });
+  }
+}
+
+function clearRoute() {
+  if (p0RouteLine) { map.removeLayer(p0RouteLine); p0RouteLine = null; }
+  document.getElementById('route-info').classList.remove('show');
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = (d) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function bearing(lat1, lon1, lat2, lon2) {
+  const toRad = (d) => d * Math.PI / 180;
+  const toDeg = (r) => r * 180 / Math.PI;
+  const y = Math.sin(toRad(lon2 - lon1)) * Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+            Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2 - lon1));
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function compassDir(deg) {
+  const dirs = ['N','NE','E','SE','S','SO','O','NO'];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+function showRouteToP0() {
+  if (!lastPos) {
+    toast('Sem GPS ainda — tenta daqui a instantes');
+    return;
+  }
+  clearRoute();
+  const [lat, lng] = lastPos;
+  const dist = haversine(lat, lng, pointZero.lat, pointZero.lng);
+  const dir = bearing(lat, lng, pointZero.lat, pointZero.lng);
+  const compass = compassDir(dir);
+
+  p0RouteLine = L.polyline([lastPos, [pointZero.lat, pointZero.lng]], {
+    color: '#f8fafc', weight: 4, opacity: 0.9, dashArray: '8, 10'
+  }).addTo(map);
+
+  // Fit map to show both points
+  const bounds = L.latLngBounds([lastPos, [pointZero.lat, pointZero.lng]]).pad(0.25);
+  map.fitBounds(bounds);
+
+  // Show info bar
+  const info = document.getElementById('route-info');
+  info.querySelector('.route-dist').textContent = dist < 1000 ? `${Math.round(dist)} m` : `${(dist/1000).toFixed(2)} km`;
+  info.querySelector('.route-dir').textContent = compass;
+  info.classList.add('show');
+}
+
+function openInGoogleMaps() {
+  if (!lastPos) { toast('Sem GPS ainda'); return; }
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${lastPos[0]},${lastPos[1]}&destination=${pointZero.lat},${pointZero.lng}&travelmode=driving`;
+  window.open(url, '_blank');
+}
+
+function pointInPolygon(lat, lng, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [yi, xi] = poly[i]; const [yj, xj] = poly[j];
+    const intersect = ((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function whichBravo(lat, lng) {
+  for (const [id, z] of Object.entries(zones)) {
+    if (pointInPolygon(lat, lng, z.coords)) return { id, zone: z };
+  }
+  return null;
+}
+
+let gpsMarker = null;
+let lastPos = null;
+function updateStatus(lat, lng, accuracy) {
+  const result = whichBravo(lat, lng);
+  const zoneText = document.getElementById('zone-text');
+  const dot = document.getElementById('dot');
+  const coords = document.getElementById('coords');
+  if (result) {
+    zoneText.textContent = result.zone.name;
+    dot.style.background = result.zone.color;
+    dot.style.boxShadow = `0 0 0 4px ${result.zone.color}33`;
+  } else {
+    zoneText.textContent = 'FORA DE ZONA';
+    dot.style.background = '#64748b';
+    dot.style.boxShadow = '0 0 0 4px rgba(100,116,139,0.2)';
+  }
+  coords.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}  ±${Math.round(accuracy)}m`;
+}
+function onGps(pos) {
+  const { latitude, longitude, accuracy } = pos.coords;
+  lastPos = [latitude, longitude];
+  if (!gpsMarker) {
+    const icon = L.divIcon({ className: '', html: '<div class="gps-marker"></div>', iconSize: [20, 20] });
+    gpsMarker = L.marker(lastPos, { icon, zIndexOffset: 1000 }).addTo(map);
+    map.setView(lastPos, 16);
+  } else {
+    gpsMarker.setLatLng(lastPos);
+  }
+  updateStatus(latitude, longitude, accuracy);
+}
+function onGpsError(err) {
+  document.getElementById('zone-text').textContent = 'GPS INDISPONÍVEL';
+  document.getElementById('coords').textContent = err.message;
+}
+if ('geolocation' in navigator) {
+  navigator.geolocation.watchPosition(onGps, onGpsError, {
+    enableHighAccuracy: true, maximumAge: 2000, timeout: 10000
+  });
+}
+
+let editMode = false;
+let selectedBravo = null;
+let editPoly = null;
+function enterEditMode(bravoId) {
+  if (editPoly) { map.removeLayer(editPoly); editPoly = null; }
+  selectedBravo = bravoId;
+  document.querySelectorAll('.bravo-btn').forEach(b => b.classList.toggle('selected', b.dataset.bravo === bravoId));
+  if (zoneLayers[bravoId]) map.removeLayer(zoneLayers[bravoId]);
+  const z = zones[bravoId];
+  editPoly = L.polygon(z.coords, { color: z.color, fillColor: z.color, fillOpacity: 0.35, weight: 4 }).addTo(map);
+  editPoly.editing = new L.Edit.Poly(editPoly);
+  editPoly.editing.enable();
+  toast(`A editar BRAVO ${bravoId} — arrasta os cantos`);
+}
+function saveEdit() {
+  if (editPoly && selectedBravo) {
+    const latlngs = editPoly.getLatLngs()[0];
+    zones[selectedBravo].coords = latlngs.map(p => [p.lat, p.lng]);
+    saveZones(zones);
+    map.removeLayer(editPoly);
+    editPoly = null;
+    selectedBravo = null;
+    renderZones();
+    toast('Guardado ✓');
+  }
+  document.getElementById('edit-panel').classList.remove('show');
+  document.getElementById('btn-edit').classList.remove('active');
+  editMode = false;
+  document.querySelectorAll('.bravo-btn').forEach(b => b.classList.remove('selected'));
+}
+function cancelEdit() {
+  if (editPoly) { map.removeLayer(editPoly); editPoly = null; }
+  selectedBravo = null;
+  renderZones();
+  document.getElementById('edit-panel').classList.remove('show');
+  document.getElementById('btn-edit').classList.remove('active');
+  editMode = false;
+  document.querySelectorAll('.bravo-btn').forEach(b => b.classList.remove('selected'));
+}
+
+document.getElementById('btn-center').addEventListener('click', () => {
+  if (lastPos) { map.setView(lastPos, 17); }
+  else { map.setView([37.0443, -8.0259], 15); toast('Sem GPS ainda'); }
+});
+document.getElementById('btn-edit').addEventListener('click', () => {
+  editMode = !editMode;
+  if (editMode) {
+    document.getElementById('edit-panel').classList.add('show');
+    document.getElementById('btn-edit').classList.add('active');
+  } else {
+    cancelEdit();
+  }
+});
+document.querySelectorAll('.bravo-btn').forEach(btn => {
+  btn.addEventListener('click', () => enterEditMode(btn.dataset.bravo));
+});
+document.getElementById('edit-save').addEventListener('click', saveEdit);
+document.getElementById('edit-cancel').addEventListener('click', cancelEdit);
+
+// Ponto 0 — navegação
+document.getElementById('btn-p0').addEventListener('click', showRouteToP0);
+document.getElementById('route-close').addEventListener('click', clearRoute);
+document.getElementById('route-gmaps').addEventListener('click', openInGoogleMaps);
+
+// Menu "•••" com ações secundárias
+document.getElementById('btn-menu').addEventListener('click', () => {
+  const action = prompt('Escolhe uma ação:\n\n1 - Exportar backup\n2 - Mover Ponto 0\n3 - Reset (apagar edições)\n\nEscreve o número:');
+  if (action === '1') {
+    const data = JSON.stringify({ zones, pointZero }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bravo-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Backup exportado');
+  } else if (action === '2') {
+    p0Dragging = !p0Dragging;
+    renderPointZero();
+    toast(p0Dragging ? 'Arrasta o Ponto 0 no mapa' : 'Modo de arrastar desligado');
+  } else if (action === '3') {
+    if (confirm('Apagar todas as alterações e voltar aos valores iniciais?')) {
+      zones = structuredClone(DEFAULT_ZONES);
+      pointZero = {...DEFAULT_POINT_ZERO};
+      saveZones(zones);
+      savePointZero(pointZero);
+      renderZones();
+      renderPointZero();
+      toast('Reset feito');
+    }
+  }
+});
+
+renderZones();
+renderPointZero();
+
+// Registar service worker para funcionamento offline e instalação PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW falhou:', err));
+  });
+}
+</script>
+</body>
+</html>
